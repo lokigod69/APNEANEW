@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apnea Bohol - One Breath Descent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            overflow: hidden;
+            background: #0a1628;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Allow selection only in form inputs */
+        input, select, textarea {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        /* Water surface */
+        .surface {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg,
+                #87CEEB 0%,
+                #4A90A4 30%,
+                #2E6B7D 50%,
+                #1A4A5E 70%,
+                #0D2B3E 85%,
+                #051520 100%
+            );
+            transition: background 0.3s;
+        }
+
+        /* Sun glare */
+        .sun-glare {
+            position: fixed;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200%;
+            height: 100%;
+            background: radial-gradient(ellipse at center top,
+                rgba(255, 255, 200, 0.4) 0%,
+                rgba(255, 255, 200, 0.1) 30%,
+                transparent 60%
+            );
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        /* Caustics */
+        .caustics {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            opacity: 0.15;
+            mix-blend-mode: overlay;
+        }
+
+        .caustic-layer {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(100, 200, 255, 0.5) 0%, transparent 20%),
+                radial-gradient(ellipse at 80% 20%, rgba(100, 200, 255, 0.4) 0%, transparent 15%),
+                radial-gradient(ellipse at 40% 70%, rgba(100, 200, 255, 0.3) 0%, transparent 25%);
+            animation: caustic-move 15s linear infinite;
+        }
+
+        @keyframes caustic-move {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-5%, 5%) scale(1.1); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        /* Depth content container */
+        .depth-content {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6000px;
+            pointer-events: none;
+        }
+
+        .depth-section {
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+            pointer-events: auto;
+        }
+
+        /* Vignette */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            z-index: 50;
+            transition: box-shadow 0.3s;
+        }
+
+        /* Blackout overlay */
+        .blackout {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        .blackout.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Success overlay */
+        .success-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg,
+                rgba(255, 200, 100, 0.8) 0%,
+                rgba(255, 150, 50, 0.6) 30%,
+                rgba(100, 200, 255, 0.4) 100%
+            );
+            opacity: 0;
+            pointer-events: none;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 1s;
+        }
+
+        .success-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Jellyfish cards */
+        .jellyfish-card {
+            background: rgba(100, 200, 255, 0.1);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 50% 50% 40% 40%;
+            padding: 20px 30px 60px;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.5s;
+            animation: jellyfish-pulse 3s ease-in-out infinite;
+            max-width: 300px;
+            overflow: hidden;
+        }
+
+        .jellyfish-card .course-img-container {
+            width: 140px;
+            height: 140px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(100, 200, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .jellyfish-card .course-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .jellyfish-card:hover {
+            background: rgba(100, 200, 255, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 60px rgba(100, 200, 255, 0.4);
+        }
+
+        @keyframes jellyfish-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(100, 200, 255, 0.2); }
+            50% { box-shadow: 0 0 40px rgba(100, 200, 255, 0.4); }
+        }
+
+        /* Location cards with images */
+        .location-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .location-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 40px rgba(100, 200, 255, 0.3);
+        }
+
+        .location-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .location-card .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 15px 15px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+        }
+
+        /* Booking form */
+        .booking-tablet {
+            background: linear-gradient(135deg, #2a3a4a, #1a2a3a);
+            border: 3px solid rgba(100, 150, 180, 0.4);
+            border-radius: 10px;
+            padding: 60px 40px;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .booking-tablet input,
+        .booking-tablet select {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            background: rgba(10, 30, 50, 0.9);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 4px;
+            color: #fff;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+        }
+
+        .booking-tablet select option {
+            background: #0a1e32;
+            color: #fff;
+        }
+
+        .book-button {
+            width: 100%;
+            padding: 16px;
+            background: rgba(100, 200, 255, 0.2);
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 4px;
+            color: #fff;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .book-button:hover {
+            background: rgba(100, 200, 255, 0.4);
+            transform: scale(1.02);
+        }
+
+        /* Assisted mode badge */
+        .assisted-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(150, 100, 100, 0.3);
+            border: 1px solid rgba(150, 100, 100, 0.5);
+            border-radius: 20px;
+            font-size: 12px;
+            color: rgba(255, 200, 200, 0.7);
+            z-index: 60;
+            display: none;
+        }
+
+        .assisted-badge.visible {
+            display: block;
+        }
+
+        /* Bubbles */
+        .bubble {
+            position: fixed;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%,
+                rgba(255, 255, 255, 0.8),
+                rgba(100, 200, 255, 0.3) 50%,
+                transparent 70%);
+            pointer-events: none;
+            animation: bubble-rise 3s ease-out forwards;
+            z-index: 40;
+        }
+
+        @keyframes bubble-rise {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 0.6;
+            }
+            100% {
+                transform: translateY(-200px) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        /* Team cards */
+        .team-card {
+            background: rgba(100, 200, 255, 0.08);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            backdrop-filter: blur(8px);
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .team-card:hover {
+            background: rgba(100, 200, 255, 0.15);
+            transform: translateY(-4px);
+        }
+
+        .team-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(100, 200, 255, 0.3), rgba(50, 150, 200, 0.2));
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        /* Testimonial */
+        .testimonial {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid rgba(100, 200, 255, 0.4);
+            padding: 20px 24px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Gallery grid */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 500px;
+        }
+
+        .gallery-item {
+            aspect-ratio: 1;
+            background: rgba(100, 200, 255, 0.1);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(100, 200, 255, 0.3);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <!-- Water background -->
+    <div class="surface" id="surface"></div>
+    <div class="sun-glare" id="sunGlare"></div>
+    <div class="caustics">
+        <div class="caustic-layer"></div>
+    </div>
+
+    <!-- Depth content -->
+    <div class="depth-content" id="depthContent">
+        <!-- Surface: 0m -->
+        <div class="depth-section" data-depth="0" style="top: 0; height: 1000px;">
+            <div class="text-center">
+                <h1 class="text-6xl md:text-8xl text-white/90 mb-8 tracking-widest" style="text-shadow: 0 0 60px rgba(255,255,255,0.3);">
+                    APNEA BOHOL
+                </h1>
+                <p class="text-2xl text-white/60 italic mb-16">One breath is enough.</p>
+                <p class="text-lg text-white/40">
+                    Hold your breath to dive
+                </p>
+                <p class="text-sm text-white/20 mt-4">
+                    (Hold mouse, spacebar, or touch)
+                </p>
+            </div>
+        </div>
+
+        <!-- 10-20m: Courses -->
+        <div class="depth-section" data-depth="10" style="top: 1000px; height: 1000px;">
+            <div class="flex flex-wrap gap-8 justify-center">
+                <div class="jellyfish-card relative">
+                    <div class="course-img-container">
+                        <img src="/assets/0.jpg" alt="Discovery Free Dive" class="course-img">
+                    </div>
+                    <h3 class="text-2xl text-white/90 mb-4">Discovery Free Dive</h3>
+                    <p class="text-white/60 mb-4">1 day / Introduction</p>
+                    <p class="text-sm text-cyan-300/70">Your first breath underwater</p>
+                    <button class="mt-6 px-6 py-2 bg-cyan-500/20 border border-cyan-500/40 rounded text-white/80 hover:bg-cyan-500/40 transition-all">
+                        Book
+                    </button>
+                </div>
+                <div class="jellyfish-card relative">
+                    <div class="course-img-container">
+                        <img src="/assets/1.jpg" alt="Wave 1" class="course-img">
+                    </div>
+                    <h3 class="text-2xl text-white/90 mb-4">Wave 1</h3>
+                    <p class="text-white/60 mb-4">3 days / Fundamentals</p>
+                    <p class="text-sm text-cyan-300/70">Build your foundation</p>
+                    <button class="mt-6 px-6 py-2 bg-cyan-500/20 border border-cyan-500/40 rounded text-white/80 hover:bg-cyan-500/40 transition-all">
+                        Book
+                    </button>
+                </div>
+                <div class="jellyfish-card relative">
+                    <div class="course-img-container">
+                        <img src="/assets/2.png" alt="Wave 2" class="course-img">
+                    </div>
+                    <h3 class="text-2xl text-white/90 mb-4">Wave 2</h3>
+                    <p class="text-white/60 mb-4">5 days / Advanced</p>
+                    <p class="text-sm text-cyan-300/70">Push your limits safely</p>
+                    <button class="mt-6 px-6 py-2 bg-cyan-500/20 border border-cyan-500/40 rounded text-white/80 hover:bg-cyan-500/40 transition-all">
+                        Book
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 20-30m: Fun dives with images -->
+        <div class="depth-section" data-depth="20" style="top: 2000px; height: 1000px;">
+            <div class="text-center max-w-3xl">
+                <h2 class="text-4xl text-white/80 mb-8">Fun Dives & Island Hopping</h2>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="location-card">
+                        <img src="/assets/balicasag.jpg" alt="Balicasag">
+                        <div class="overlay">
+                            <p class="text-xl text-white/90">Balicasag Island</p>
+                            <p class="text-sm text-cyan-300/60 mt-1">Sea turtles & jackfish</p>
+                        </div>
+                    </div>
+                    <div class="location-card">
+                        <img src="/assets/sardines.jpg" alt="Napaling Reef">
+                        <div class="overlay">
+                            <p class="text-xl text-white/90">Napaling Reef</p>
+                            <p class="text-sm text-cyan-300/60 mt-1">Sardines & reef</p>
+                        </div>
+                    </div>
+                    <div class="location-card">
+                        <img src="/assets/Napaling.jpg" alt="Fun Dives">
+                        <div class="overlay">
+                            <p class="text-xl text-white/90">Fun Dives</p>
+                            <p class="text-sm text-cyan-300/60 mt-1">Corals & tropical fish</p>
+                        </div>
+                    </div>
+                    <div class="location-card">
+                        <img src="/assets/chocolate.jpg" alt="Bohol Tours">
+                        <div class="overlay">
+                            <p class="text-xl text-white/90">Bohol Tours</p>
+                            <p class="text-sm text-cyan-300/60 mt-1">Chocolate Hills</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 30-40m: Testimonials & Team -->
+        <div class="depth-section" data-depth="30" style="top: 3000px; height: 1000px;">
+            <div class="max-w-2xl">
+                <h2 class="text-3xl text-white/70 mb-8 text-center italic">What Divers Say</h2>
+
+                <div class="testimonial mb-6">
+                    <p class="text-white/60 italic mb-3">"Did some amazing line training here!! Not only did I feel safe but also motivated and supported to reach my new personal best depth!! And the cherry on top was the good chats during the surface intervals :)"</p>
+                    <p class="text-cyan-300/50 text-sm">— Filip G. ⭐⭐⭐⭐⭐</p>
+                </div>
+
+                <div class="testimonial mb-6">
+                    <p class="text-white/60 italic mb-3">"We're so lucky to have found this free diving school. They are very kind and professional. Highly recommend!"</p>
+                    <p class="text-cyan-300/50 text-sm">— Rose ⭐⭐⭐⭐⭐</p>
+                </div>
+
+                <div class="testimonial">
+                    <p class="text-white/60 italic mb-3">"From never having done freediving before to reaching 20m in just a few days. Amazing experience with Coach Alroy!"</p>
+                    <p class="text-cyan-300/50 text-sm">— Diver ⭐⭐⭐⭐⭐</p>
+                </div>
+
+                <a href="https://www.google.com/maps/search/Apnea+Bohol+Panglao/@9.5834,123.7684,15z" target="_blank" class="inline-block mt-6 text-cyan-300/60 hover:text-cyan-300/90 text-sm transition-colors">
+                    See all 51 reviews on Google →
+                </a>
+
+                <div class="mt-12 text-center">
+                    <h3 class="text-xl text-white/50 mb-6">Your Team</h3>
+                    <div class="flex gap-6 justify-center">
+                        <div class="team-card">
+                            <div class="team-avatar">🤿</div>
+                            <p class="text-white/80 font-medium">Alroy</p>
+                            <p class="text-cyan-300/50 text-sm">Instructor</p>
+                        </div>
+                        <div class="team-card">
+                            <div class="team-avatar">🌊</div>
+                            <p class="text-white/80 font-medium">Kristel</p>
+                            <p class="text-cyan-300/50 text-sm">Manager</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 40-50m: Gallery -->
+        <div class="depth-section" data-depth="40" style="top: 4000px; height: 1000px;">
+            <div class="text-center">
+                <h2 class="text-3xl text-cyan-200/60 mb-8">Gallery</h2>
+                <p class="text-cyan-100/40 text-lg italic max-w-md mx-auto mb-8">
+                    Moments from the deep
+                </p>
+                <div class="gallery-grid mx-auto">
+                    <div class="gallery-item">
+                        <img src="/assets/balicasag.jpg" alt="Balicasag Island">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/assets/sardines.jpg" alt="Sardines">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/assets/Napaling.jpg" alt="Napaling">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/assets/turtle.png" alt="Sea Turtle">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/assets/deep.png" alt="Deep dive">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/assets/coral.png" alt="Coral">
+                    </div>
+                </div>
+                <p class="text-cyan-100/30 text-sm mt-6">
+                    Follow us @apneabohol
+                </p>
+            </div>
+        </div>
+
+        <!-- 60m: Booking form -->
+        <div class="depth-section" data-depth="60" style="top: 5000px; height: 1000px;">
+            <div class="booking-tablet">
+                <h2 class="text-3xl text-white/90 text-center mb-2">You made it.</h2>
+                <p class="text-center text-cyan-200/50 mb-8">The deep welcomes you.</p>
+
+                <input type="text" placeholder="Your name" />
+                <input type="email" placeholder="Email" />
+                <select>
+                    <option value="">Select a course...</option>
+                    <option value="discovery">Discovery Free Dive</option>
+                    <option value="wave1">Wave 1</option>
+                    <option value="wave2">Wave 2</option>
+                    <option value="fun">Fun Dive</option>
+                </select>
+                <input type="date" />
+
+                <button class="book-button" id="bookButton">
+                    Emerge
+                </button>
+
+                <div class="flex justify-center gap-6 mt-8 pt-6 border-t border-cyan-500/20">
+                    <a href="https://www.instagram.com/apnea_bohol/" target="_blank" class="text-white/50 hover:text-cyan-300 transition-colors text-2xl" title="Instagram">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    </a>
+                    <a href="https://www.facebook.com/Apneabohol/" target="_blank" class="text-white/50 hover:text-cyan-300 transition-colors text-2xl" title="Facebook">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z"/></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Depth gauge -->
+    <div class="fixed bottom-8 left-8 z-50">
+        <div class="text-white/30 text-sm mb-2">DEPTH</div>
+        <div class="text-4xl text-white/70 font-light">
+            <span id="depthDisplay">0</span><span class="text-lg ml-1">m</span>
+        </div>
+    </div>
+
+    <!-- Breath timer -->
+    <div class="fixed bottom-8 right-8 z-50 text-right">
+        <div class="text-white/30 text-sm mb-2">BREATH HOLD</div>
+        <div class="text-2xl text-white/50 font-light" id="breathTimer">
+            0:00
+        </div>
+    </div>
+
+    <!-- Bubbles container -->
+    <div id="bubbles"></div>
+
+    <!-- Vignette -->
+    <div class="vignette" id="vignette"></div>
+
+    <!-- Blackout overlay -->
+    <div class="blackout" id="blackout">
+        <div class="text-center text-white">
+            <p class="text-3xl mb-4">Surface</p>
+            <p class="text-lg text-white/60" id="blackoutMessage">
+                Try again when you're ready.
+            </p>
+        </div>
+    </div>
+
+    <!-- Success overlay -->
+    <div class="success-overlay" id="successOverlay">
+        <div class="text-center text-white">
+            <h1 class="text-6xl mb-8" style="text-shadow: 0 0 40px rgba(0,0,0,0.3);">
+                Welcome to the deep.
+            </h1>
+            <p class="text-2xl text-white/80">
+                We'll be in touch within 24 hours.
+            </p>
+        </div>
+    </div>
+
+    <!-- Assisted mode badge -->
+    <div class="assisted-badge" id="assistedBadge">
+        assisted dive
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
